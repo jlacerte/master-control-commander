@@ -3,74 +3,109 @@
 [![Status](https://img.shields.io/badge/status-production-brightgreen.svg)]()
 [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet.svg)](https://claude.ai/code)
 [![Anthropic SDK](https://img.shields.io/badge/Anthropic-SDK-orange.svg)](https://github.com/anthropics/anthropic-sdk-python)
-[![MCP Servers](https://img.shields.io/badge/MCP%20Servers-11%2B-informational.svg)]()
-[![Autonomous Workers](https://img.shields.io/badge/Workers-3%20autonomous-success.svg)]()
+[![MCP Servers](https://img.shields.io/badge/MCP%20Servers-15-informational.svg)]()
+[![Autonomous Workers](https://img.shields.io/badge/Workers-5%20autonomous-success.svg)]()
+[![Distributed](https://img.shields.io/badge/architecture-distributed-purple.svg)]()
+[![Cross-Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 # Master Control Commander
 
 🇫🇷 [Version française](README.fr.md) · 📋 [Changelog / Version Tracking](CHANGELOG.md)
 
-**v0.1.0-alpha — Active Development**
+**v0.2.0-alpha — Active Development**
 
-> Status: Early development and consolidation. Architecture documented from a working production system. Demo available for local testing.
+> Status: Production system running 24/7 across multiple nodes. Architecture documented from real infrastructure. Demo available for local testing on any platform.
 
-A two-system architecture for running autonomous AI agents in a real business. Separates infrastructure orchestration (**Commander**) from intelligent agent logic (**Control**).
+A distributed, two-layer architecture for running autonomous AI agents in a real business. Separates infrastructure orchestration (**Commander**) from intelligent agent logic (**Control**). Components communicate over HTTP, making the system natively distributable across nodes and platforms.
 
-Developed and tested over 6+ months in a field service operation handling invoicing, client communications, market intelligence, and system maintenance.
+Developed and tested over 6+ months in a field service operation handling invoicing, client communications, market intelligence, and system maintenance. Currently running on 3 VPS nodes with 15 MCP servers, 5 autonomous workers, and 30+ scheduled automations.
 
 ---
 
 ## Architecture
 
+### Distributed Network Overview
+
 ```
-                    ┌─────────────────────────────────────────────┐
-                    │            MASTER CONTROL                    │
-                    │         (AI Agent Layer)                     │
-                    │                                              │
-                    │  ┌──────────┐ ┌──────────┐ ┌──────────┐    │
-                    │  │Concierge │ │ Business │ │  Intel   │    │
-                    │  │ Worker   │ │  Worker  │ │  Worker  │    │
-                    │  │(Infra)   │ │(Revenue) │ │(Market)  │    │
-                    │  └────┬─────┘ └────┬─────┘ └────┬─────┘    │
-                    │       └────────────┼────────────┘           │
-                    │                    │                         │
-                    │              Task Broker                     │
-                    │           (Supabase/SQLite)                  │
-                    └────────────────────┬────────────────────────┘
-                                         │
-                    ┌────────────────────┼────────────────────────┐
-                    │            MASTER COMMANDER                  │
-                    │        (Infrastructure Layer)                │
-                    │                                              │
-                    │  ┌─────────────────────────────────────┐    │
-                    │  │         MCP Server Fleet             │    │
-                    │  │  ┌─────┐┌─────┐┌─────┐┌─────┐     │    │
-                    │  │  │ ERP ││Email││ CRM ││Phone│ ... │    │
-                    │  │  └─────┘└─────┘└─────┘└─────┘     │    │
-                    │  └─────────────────────────────────────┘    │
-                    │                                              │
-                    │  ┌──────────┐ ┌──────────┐ ┌──────────┐    │
-                    │  │  Health  │ │   Auto   │ │   Port   │    │
-                    │  │ Monitor  │ │ Stabilize│ │ Registry │    │
-                    │  └──────────┘ └──────────┘ └──────────┘    │
-                    │                                              │
-                    │  ┌──────────┐ ┌──────────┐ ┌──────────┐    │
-                    │  │   RAG    │ │Blueprint │ │Adversarial│   │
-                    │  │  Memory  │ │  Refresh │ │ Validator │   │
-                    │  └──────────┘ └──────────┘ └──────────┘    │
-                    └─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                     DISTRIBUTED NODE MAP                             │
+│                                                                      │
+│  ┌──────────────────────┐   ┌──────────────────────┐                │
+│  │  NODE 1: Primary VPS  │   │  NODE 2: Dedicated    │               │
+│  │  Linux x86_64         │   │  Linux x86_64         │               │
+│  │  AMD EPYC · 8GB · SSD │   │  Project workloads    │               │
+│  │                        │   │                        │               │
+│  │  15 MCP Servers        │   └──────────┬─────────────┘              │
+│  │  5 Workers             │              │                            │
+│  │  30+ Cron jobs         │              │ HTTP/MCP                   │
+│  │  Health monitoring     │              │                            │
+│  └──────────┬─────────────┘   ┌──────────┴─────────────┐            │
+│             │                 │  NODE 3: Archon Cloud    │            │
+│             │ HTTP/MCP        │  Task Broker (Supabase)  │            │
+│             │                 │  RAG Knowledge Base      │            │
+│             │                 │  Project Management      │            │
+│  ┌──────────┴─────────────┐   └──────────┬─────────────┘            │
+│  │  NODE 4: Workstation    │              │                           │
+│  │  macOS / Linux / Win    │              │                           │
+│  │  Claude Code CLI        │──────────────┘                          │
+│  │  Direct MCP access      │                                         │
+│  │  Dev + operator console │                                         │
+│  └─────────────────────────┘                                         │
+│                                                                      │
+│  All nodes connect to the same MCP servers and Task Broker           │
+│  via HTTP. No shared filesystem or VPN required.                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Two-Layer Design
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      MASTER CONTROL (Agent Layer)                 │
+│                                                                   │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐        │
+│  │ Concierge │ │ Business  │ │   Intel   │ │   Slack   │  ...   │
+│  │  Worker   │ │  Worker   │ │  Worker   │ │  Socket   │        │
+│  │  (Infra)  │ │ (Revenue) │ │ (Market)  │ │  (Chat)   │        │
+│  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────┬─────┘        │
+│        └──────────────┼─────────────┼─────────────┘              │
+│                       │             │                             │
+│              ┌────────┴─────────────┴────────┐                   │
+│              │       Task Broker              │                   │
+│              │    (Supabase — external)       │                   │
+│              └───────────────────────────────┘                   │
+└──────────────────────────┬───────────────────────────────────────┘
+                           │ HTTP
+┌──────────────────────────┼───────────────────────────────────────┐
+│                   MASTER COMMANDER (Infrastructure Layer)         │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │                   MCP Server Fleet (15)                     │  │
+│  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐  │  │
+│  │  │ ERP  │ │Email │ │ CRM  │ │Phone │ │ Desk │ │Calendar│ │  │
+│  │  │Zoho  │ │Zoho  │ │Zoho  │ │Twilio│ │Zoho  │ │Nextcl. │ │  │
+│  │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘  │  │
+│  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐  │  │
+│  │  │ File │ │Intel │ │Brief.│ │Slack │ │Email │ │Servi-│  │  │
+│  │  │Maker │ │igence│ │  ing │ │      │ │IMAP  │ │cNtre │  │  │
+│  │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘  │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                   │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐    │
+│  │  Health  │ │   Auto   │ │   Port   │ │  RAG Memory +    │    │
+│  │ Monitor  │ │ Stabilize│ │ Registry │ │  Blueprint Sync  │    │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────────────┘    │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Commander (Infrastructure)
 
-Keeps everything running on a single VPS with systemd and cron:
-
-| Component | Role |
-|-----------|------|
-| MCP Servers (11+) | API abstraction — ERP, Email, CRM, Phone, Calendar |
-| Workers (3) | Autonomous task execution via Claude SDK |
-| Cron Jobs (8+) | Health checks, data sync, auto-stabilize |
-| Port Registry | Centralized port conflict prevention |
+| Component | Count | Role |
+|-----------|-------|------|
+| MCP Servers | 15 | API abstraction — ERP, Email, CRM, Phone, Calendar, Help Desk, Database, Intelligence |
+| Workers | 5 | Autonomous task execution via Claude SDK (infra, business, intel, orchestration, chat) |
+| Cron Jobs | 30+ | Health checks, data sync, auto-stabilize, email commands, blueprint refresh |
+| Port Registry | 1 | Centralized port conflict prevention with validation script |
 
 ### Control (Agent Layer)
 
@@ -79,6 +114,50 @@ Each worker is a Claude SDK session with:
 - Task-driven execution (poll → execute → report)
 - Domain expertise loaded via CLAUDE.md files and RAG
 - Circuit breakers (max 3 failures before escalation)
+
+---
+
+## Distributed by Design
+
+The architecture is natively distributable. Components communicate exclusively over HTTP — no shared filesystem, no VPN, no tight coupling.
+
+### Why it distributes
+
+| Component | Protocol | Location constraint |
+|-----------|----------|-------------------|
+| MCP Servers | HTTP endpoints | Any machine with network access |
+| Task Broker | Supabase REST API | Cloud-hosted (external) |
+| Workers | HTTP client → MCP + Broker | Any machine with Python + API key |
+| Claude Code | CLI / Desktop / Web | macOS, Linux, Windows |
+| Health Monitor | Reads local + remote endpoints | Any node |
+
+### Current production topology
+
+| Node | Hardware | Role | OS |
+|------|----------|------|-----|
+| Primary VPS | AMD EPYC 7713 · 8 GB RAM · 160 GB SSD | 15 MCP servers, 5 workers, cron, monitoring | Ubuntu 22.04 (x86_64) |
+| Dedicated VPS | Dedicated workloads | Project-specific processing | Linux (x86_64) |
+| Archon Cloud | Supabase-backed | Task broker, RAG knowledge base, project management | Docker |
+| Workstation | Apple M-series · 16+ GB RAM | Claude Code operator console, development, direct MCP access | macOS (ARM64) |
+
+### Adding a new node
+
+A new node (VPS, laptop, container) needs only:
+1. Network access to the MCP server endpoints (HTTP)
+2. Network access to the Task Broker (Supabase URL + key)
+3. An Anthropic API key for Claude SDK sessions
+4. A CLAUDE.md file defining the worker's role and autonomy rules
+
+No code changes. No deployment pipeline. No shared state beyond the broker.
+
+### Cross-platform support
+
+The demo and workers run on:
+- **Linux** (x86_64, ARM64) — production servers, Raspberry Pi, WSL
+- **macOS** (Apple Silicon, Intel) — development workstations
+- **Windows** (native, WSL) — via Python or Claude Code desktop app
+
+Claude Code itself is available as CLI, desktop app (Mac/Windows), web app, and IDE extensions (VS Code, JetBrains).
 
 ---
 
@@ -278,12 +357,15 @@ The demo seeds 3 sample tasks (inspection summary, overdue follow-ups, retrofit 
 
 ### Hardware requirements
 
-| Setup | RAM | Works? |
-|-------|-----|--------|
-| Any modern laptop | 4+ GB | Yes — demo uses API only |
-| VPS (4 CPU, 8 GB) | 8 GB | Yes — production target |
+| Platform | Example Hardware | RAM | Works? |
+|----------|-----------------|-----|--------|
+| macOS (Apple Silicon) | MacBook Pro M2/M3/M4 | 8+ GB | Yes |
+| macOS (Intel) | MacBook Pro / iMac | 8+ GB | Yes |
+| Linux (x86_64) | VPS, dedicated server, desktop | 4+ GB | Yes |
+| Linux (ARM64) | Raspberry Pi 4/5, ARM VPS | 4+ GB | Yes |
+| Windows | Native Python or WSL | 4+ GB | Yes |
 
-The demo needs Python 3.11+ and a Claude API key. No GPU required.
+The demo uses the Claude API — all computation happens server-side. No GPU required. Requirements: Python 3.11+ and an Anthropic API key.
 
 ### What to observe
 
@@ -324,7 +406,7 @@ Week 4:  Auto-stabilize + RAG memory
 Month 2: Blueprint automation + adversarial loops on critical paths
 ```
 
-Everything runs on a single VPS (4 CPU, 8GB RAM, $20-50/month). Systemd manages services. Cron handles scheduling. No Kubernetes needed.
+The primary node runs on a single VPS (AMD EPYC, 8 GB RAM, $20-50/month). Additional nodes can be added by pointing workers at the same MCP endpoints and Task Broker. Systemd manages services. Cron handles scheduling. No Kubernetes needed.
 
 ---
 
@@ -343,7 +425,7 @@ HVAC, plumbing, electrical, fire protection, property management, insurance insp
 3. **Self-healing saves you at 3 AM.** Circuit breakers + auto-restart means sleeping through issues.
 4. **MCP abstraction is necessary.** Agents on raw APIs leads to retry loops and OAuth problems.
 5. **Explicit autonomy beats model judgment.** Define what agents can and can't do.
-6. **One VPS is enough.** Resist over-engineering at this scale.
+6. **One VPS is enough to start.** The architecture distributes across nodes when needed, but a single VPS handles production workloads at this scale.
 7. **Health before features.** Never deploy when existing services are degraded.
 8. **Disagreement = escalation.** When agents don't agree, a human decides. This is a feature.
 

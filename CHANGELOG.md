@@ -12,6 +12,7 @@ Ce tableau indique la version de chaque langue. Lorsqu'une langue est mise a jou
 
 | Version | English (`README.md`) | Francais (`README.fr.md`) | Sync Status |
 |---------|----------------------|--------------------------|-------------|
+| 0.2.0-alpha | 2026-03-30 | 2026-03-30 | In sync |
 | 0.1.0-alpha | 2026-03-30 | 2026-03-30 | In sync |
 
 ### How to use / Comment utiliser
@@ -34,6 +35,19 @@ Ce tableau indique la version de chaque langue. Lorsqu'une langue est mise a jou
 - Skill system documentation with code examples
 - Competitive analysis: what makes this architecture unique
 - All examples anonymized — no real business data
+- Distributed network overview diagram showing all production nodes
+- "Distributed by Design" section explaining HTTP-based distribution model
+- Current production topology with real hardware specs
+- Cross-platform support table (macOS, Linux, Windows, ARM64)
+- Instructions for adding new nodes to the network
+
+### Changed
+- Architecture diagram updated to reflect 15 MCP servers (was 11+) and 5 workers (was 3)
+- Two-layer design diagram now shows all 15 MCP servers by name
+- Hardware requirements table expanded with per-platform entries
+- Production setup section updated for multi-node deployment
+- Badge counts updated to match production reality
+- Added "Distributed" and "Cross-Platform" badges
 
 ---
 
