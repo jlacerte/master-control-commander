@@ -1,0 +1,75 @@
+# sample-rulebook.yaml — QA Auditor business rules
+# Customize for your business. The LLM interprets these semantically.
+# Severity levels: critical (blocks sending), warning (flags), info (logged only)
+
+rules:
+  # === CRITICAL (blockers — email will NOT be sent) ===
+
+  - id: COMPANY_NAME
+    severity: critical
+    description: "Official company name must be exact"
+    patterns:
+      - "Acme Sprinkler Systems"
+      - "Acme Sprinklers Inc."
+      - "Acme Sprinkler"
+    expected: "Acme Sprinklers"
+
+  - id: LEGAL_ENTITY
+    severity: critical
+    description: "Legal entity name if mentioned"
+    expected: "1234567 Canada Inc."
+
+  - id: TRADE_LICENSE
+    severity: critical
+    description: "Trade license number must be correct"
+    expected: "1234-5678-90"
+    context: "Never invent a license number"
+
+  - id: PO_REQUIRED_CLIENT_X
+    severity: critical
+    description: "Invoices to Client X must include a PO number"
+    trigger: "recipient is Client X accounts payable email"
+    check: "a PO or purchase order number must be mentioned"
+
+  - id: CLIENT_X_CONTACT
+    severity: critical
+    description: "Reports for Client X go to Jane Smith (via Partner Y)"
+    expected: "Jane Smith"
+
+  # === WARNING (flagged but email can be sent) ===
+
+  - id: CONFIDENTIAL_PARTNER
+    severity: warning
+    description: "No internal pricing, margins, or costs in partner reports"
+    trigger: "report destined to a partner or client"
+    check: "no internal amounts, margins, or cost figures"
+
+  - id: TIMEZONE
+    severity: warning
+    description: "Timestamps must be in local time, not UTC"
+    expected: "Convert UTC to local timezone"
+
+  - id: LANGUAGE
+    severity: warning
+    description: "Client communications must be in the client's language"
+
+  - id: HIGH_RISK_BUILDING
+    severity: warning
+    description: "123 Main Street = high-risk building"
+    trigger: "mention of 123 Main Street"
+    check: "must be flagged as high-risk"
+
+  # === INFO (logged only, no blocking) ===
+
+  - id: OPERATING_REGION
+    severity: info
+    expected: "Greater Metro Area + surrounding counties"
+
+  - id: TEAM_NAMES
+    severity: info
+    expected: "John Doe, Jane Smith, Bob Wilson"
+    check: "correct spelling of team member names"
+
+  - id: CLIENT_WEIGHTS
+    severity: info
+    expected: "Client A 35-40%, Client B 25-30%, Client C 10-15%"

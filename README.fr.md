@@ -1,5 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/Licence-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.0--alpha-blue.svg)](CHANGELOG.md)
 [![Statut](https://img.shields.io/badge/statut-production-brightgreen.svg)]()
 [![Construit avec Claude Code](https://img.shields.io/badge/Construit%20avec-Claude%20Code-blueviolet.svg)](https://claude.ai/code)
 [![Anthropic SDK](https://img.shields.io/badge/Anthropic-SDK-orange.svg)](https://github.com/anthropics/anthropic-sdk-python)

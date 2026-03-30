@@ -22,6 +22,21 @@ Ce tableau indique la version de chaque langue. Lorsqu'une langue est mise a jou
 
 ---
 
+## [0.2.0-alpha] — 2026-03-30
+
+### Added
+- Master Control local validation layer documentation (`docs/master-control-local.md`)
+- Sample QA rulebook template (`examples/sample-rulebook.yaml`)
+- QA Auditor architecture: LLM-as-judge with YAML business rules
+- WireGuard VPN integration details (Mac ↔ VPS)
+- Agent framework documentation (Perceive→Think→Act→Observe loop)
+- Web dashboard features: Ollama Monitor, Traces, Memory Browser
+- Skill system documentation with code examples
+- Competitive analysis: what makes this architecture unique
+- All examples anonymized — no real business data
+
+---
+
 ## [0.1.0-alpha] — 2026-03-30
 
 ### Added
