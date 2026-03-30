@@ -6,7 +6,7 @@
 [![MCP Servers](https://img.shields.io/badge/MCP%20Servers-15-informational.svg)]()
 [![Autonomous Workers](https://img.shields.io/badge/Workers-5%20autonomous-success.svg)]()
 [![Distributed](https://img.shields.io/badge/architecture-distributed-purple.svg)]()
-[![Cross-Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey.svg)]()
 
 # Master Control Commander
 
@@ -128,7 +128,7 @@ The architecture is natively distributable. Components communicate exclusively o
 | MCP Servers | HTTP endpoints | Any machine with network access |
 | Task Broker | Supabase REST API | Cloud-hosted (external) |
 | Workers | HTTP client → MCP + Broker | Any machine with Python + API key |
-| Claude Code | CLI / Desktop / Web | macOS, Linux, Windows |
+| Claude Code | CLI / Desktop / Web | macOS, Linux |
 | Health Monitor | Reads local + remote endpoints | Any node |
 
 ### Current production topology
@@ -150,14 +150,11 @@ A new node (VPS, laptop, container) needs only:
 
 No code changes. No deployment pipeline. No shared state beyond the broker.
 
-### Cross-platform support
+### Tested platforms
 
-The demo and workers run on:
-- **Linux** (x86_64, ARM64) — production servers, Raspberry Pi, WSL
-- **macOS** (Apple Silicon, Intel) — development workstations
-- **Windows** (native, WSL) — via Python or Claude Code desktop app
-
-Claude Code itself is available as CLI, desktop app (Mac/Windows), web app, and IDE extensions (VS Code, JetBrains).
+The system has been tested and runs in production on:
+- **Linux x86_64** — Ubuntu 22.04 VPS (production, all 3 nodes)
+- **macOS Apple Silicon** — development workstation, Claude Code operator console
 
 ---
 
@@ -357,13 +354,10 @@ The demo seeds 3 sample tasks (inspection summary, overdue follow-ups, retrofit 
 
 ### Hardware requirements
 
-| Platform | Example Hardware | RAM | Works? |
-|----------|-----------------|-----|--------|
-| macOS (Apple Silicon) | MacBook Pro M2/M3/M4 | 8+ GB | Yes |
-| macOS (Intel) | MacBook Pro / iMac | 8+ GB | Yes |
-| Linux (x86_64) | VPS, dedicated server, desktop | 4+ GB | Yes |
-| Linux (ARM64) | Raspberry Pi 4/5, ARM VPS | 4+ GB | Yes |
-| Windows | Native Python or WSL | 4+ GB | Yes |
+| Platform | Example Hardware | RAM | Tested? |
+|----------|-----------------|-----|---------|
+| Linux (x86_64) | VPS, dedicated server | 4+ GB | Production |
+| macOS (Apple Silicon) | MacBook Pro M-series | 8+ GB | Development |
 
 The demo uses the Claude API — all computation happens server-side. No GPU required. Requirements: Python 3.11+ and an Anthropic API key.
 

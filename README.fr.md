@@ -6,7 +6,7 @@
 [![Serveurs MCP](https://img.shields.io/badge/Serveurs%20MCP-15-informational.svg)]()
 [![Workers autonomes](https://img.shields.io/badge/Workers-5%20autonomes-success.svg)]()
 [![Distribué](https://img.shields.io/badge/architecture-distribu%C3%A9e-purple.svg)]()
-[![Multi-plateforme](https://img.shields.io/badge/plateforme-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
+[![Plateforme](https://img.shields.io/badge/plateforme-Linux%20%7C%20macOS-lightgrey.svg)]()
 
 # Master Control Commander
 
@@ -129,7 +129,7 @@ L'architecture est nativement distribuable. Les composants communiquent exclusiv
 | Serveurs MCP | Endpoints HTTP | N'importe quelle machine avec accès réseau |
 | Courtier de tâches | API REST Supabase | Hébergé en cloud (externe) |
 | Workers | Client HTTP → MCP + Broker | N'importe quelle machine avec Python + clé API |
-| Claude Code | CLI / Desktop / Web | macOS, Linux, Windows |
+| Claude Code | CLI / Desktop / Web | macOS, Linux |
 | Moniteur de santé | Lit les endpoints locaux + distants | N'importe quel nœud |
 
 ### Topologie de production actuelle
@@ -151,14 +151,11 @@ Un nouveau nœud (VPS, laptop, conteneur) a besoin uniquement de :
 
 Pas de changement de code. Pas de pipeline de déploiement. Pas d'état partagé au-delà du courtier.
 
-### Support multi-plateforme
+### Plateformes testées
 
-La démo et les workers fonctionnent sur :
-- **Linux** (x86_64, ARM64) — serveurs de production, Raspberry Pi, WSL
-- **macOS** (Apple Silicon, Intel) — postes de développement
-- **Windows** (natif, WSL) — via Python ou l'application desktop Claude Code
-
-Claude Code est disponible en CLI, application desktop (Mac/Windows), application web et extensions IDE (VS Code, JetBrains).
+Le système a été testé et roule en production sur :
+- *Linux x86_64* — Ubuntu 22.04 VPS (production, les 3 nœuds)
+- *macOS Apple Silicon* — poste de développement, console opérateur Claude Code
 
 ---
 
@@ -358,13 +355,10 @@ La démo initialise 3 tâches exemples (résumé d'inspection, suivis en retard,
 
 ### Exigences matérielles
 
-| Plateforme | Exemple de matériel | RAM | Fonctionne? |
-|------------|-------------------|-----|-------------|
-| macOS (Apple Silicon) | MacBook Pro M2/M3/M4 | 8+ Go | Oui |
-| macOS (Intel) | MacBook Pro / iMac | 8+ Go | Oui |
-| Linux (x86_64) | VPS, serveur dédié, desktop | 4+ Go | Oui |
-| Linux (ARM64) | Raspberry Pi 4/5, VPS ARM | 4+ Go | Oui |
-| Windows | Python natif ou WSL | 4+ Go | Oui |
+| Plateforme | Exemple de matériel | RAM | Testé? |
+|------------|-------------------|-----|--------|
+| Linux (x86_64) | VPS, serveur dédié | 4+ Go | Production |
+| macOS (Apple Silicon) | MacBook Pro M-series | 8+ Go | Développement |
 
 La démo utilise l'API Claude — tout le calcul se fait côté serveur. Pas de GPU requis. Prérequis : Python 3.11+ et une clé API Anthropic.
 
