@@ -1,0 +1,87 @@
+{
+  "_comment": "Auto-stabilize rules — Self-healing configuration",
+  "global": {
+    "max_restarts_per_hour": 3,
+    "cooldown_between_restarts_seconds": 120,
+    "escalation_after_consecutive_failures": 3,
+    "notification_email": "admin@example.com"
+  },
+  "forbidden_actions": [
+    "restart sshd",
+    "restart systemd",
+    "restart docker.service",
+    "rm -rf",
+    "modify /etc/*",
+    "modify credentials",
+    "kill -9 on critical processes"
+  ],
+  "service_tiers": {
+    "critical": {
+      "description": "Services that must be running for core operations",
+      "services": ["task-broker", "primary-worker", "email-mcp"],
+      "auto_restart": true,
+      "max_restart_attempts": 3,
+      "escalate_on_failure": true
+    },
+    "important": {
+      "description": "Services that enhance capabilities but aren't blocking",
+      "services": ["erp-mcp", "intelligence-worker", "business-worker"],
+      "auto_restart": true,
+      "max_restart_attempts": 2,
+      "escalate_on_failure": true
+    },
+    "optional": {
+      "description": "Nice-to-have services that can wait for manual intervention",
+      "services": ["crm-mcp", "support-mcp", "calendar-mcp", "phone-mcp"],
+      "auto_restart": true,
+      "max_restart_attempts": 1,
+      "escalate_on_failure": false
+    }
+  },
+  "health_checks": {
+    "interval_minutes": 5,
+    "output_path": "/path/to/health.json",
+    "checks": [
+      {
+        "name": "systemd_services",
+        "type": "systemd_status",
+        "services": ["*-mcp", "*-worker"]
+      },
+      {
+        "name": "http_endpoints",
+        "type": "http_health",
+        "endpoints": [
+          {"name": "task-broker", "url": "http://localhost:3080/health"},
+          {"name": "email-mcp", "url": "http://localhost:8054/health"}
+        ],
+        "timeout_seconds": 5
+      },
+      {
+        "name": "disk_space",
+        "type": "disk",
+        "warning_threshold_percent": 80,
+        "critical_threshold_percent": 95
+      },
+      {
+        "name": "memory",
+        "type": "memory",
+        "warning_threshold_percent": 85,
+        "critical_threshold_percent": 95
+      }
+    ]
+  },
+  "escalation": {
+    "channels": [
+      {
+        "type": "task_broker",
+        "description": "Create a task for the concierge worker to investigate",
+        "project_id": "infra-project-id"
+      },
+      {
+        "type": "email",
+        "description": "Send alert email to admin",
+        "recipient": "admin@example.com"
+      }
+    ]
+  }
+}

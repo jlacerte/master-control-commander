@@ -1,0 +1,24 @@
+{
+  "_comment": "Centralized port registry — Single source of truth for all TCP ports",
+  "_usage": "Check this file BEFORE assigning any new port. Run validate-ports.sh after changes.",
+  "ranges": {
+    "mcp_servers": {"start": 8050, "end": 8079, "description": "MCP server fleet"},
+    "infrastructure": {"start": 3080, "end": 3099, "description": "Task broker, monitoring"},
+    "workers": {"start": null, "end": null, "description": "Workers don't bind ports (they poll)"}
+  },
+  "ports": {
+    "3080": {"service": "task-broker", "type": "infrastructure", "protocol": "HTTP"},
+    "8054": {"service": "email-mcp", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8055": {"service": "erp-mcp", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8057": {"service": "calendar-mcp", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8058": {"service": "crm-mcp", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8059": {"service": "support-mcp", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8060": {"service": "phone-mcp-api", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8061": {"service": "phone-websocket", "type": "realtime", "protocol": "WebSocket"},
+    "8062": {"service": "chat-mcp", "type": "mcp", "protocol": "HTTP"},
+    "8063": {"service": "database-mcp", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8064": {"service": "alt-email-mcp", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8065": {"service": "briefing-mcp", "type": "mcp", "protocol": "HTTP/SSE"},
+    "8066": {"service": "intelligence-mcp", "type": "mcp", "protocol": "HTTP/SSE"}
+  }
+}
