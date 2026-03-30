@@ -1,6 +1,14 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue.svg)](CHANGELOG.md)
+[![Status](https://img.shields.io/badge/status-production-brightgreen.svg)]()
+[![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet.svg)](https://claude.ai/code)
+[![Anthropic SDK](https://img.shields.io/badge/Anthropic-SDK-orange.svg)](https://github.com/anthropics/anthropic-sdk-python)
+[![MCP Servers](https://img.shields.io/badge/MCP%20Servers-11%2B-informational.svg)]()
+[![Autonomous Workers](https://img.shields.io/badge/Workers-3%20autonomous-success.svg)]()
+
 # Master Control Commander
 
-[Version française](README.fr.md)
+🇫🇷 [Version française](README.fr.md) · 📋 [Changelog / Version Tracking](CHANGELOG.md)
 
 **v0.1.0-alpha — Active Development**
 
