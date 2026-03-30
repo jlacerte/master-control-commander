@@ -312,6 +312,186 @@ Training Data  → "How should an expert in this domain respond?"
 
 ---
 
+## Local Model Strategy: Edge Intelligence
+
+The third pillar of the architecture — beyond cloud agents and infrastructure — is **local model deployment**. A fine-tuned open-weight model running on commodity hardware gives your field workers domain expertise without API calls, latency, or internet dependency.
+
+### Why Open-Weight Models?
+
+| Factor | Proprietary (GPT/Claude API) | Open-Weight (Qwen/Llama/Gemma) |
+|--------|------------------------------|--------------------------------|
+| Privacy | Data leaves your network | Stays on your hardware |
+| Ownership | You rent access | You own the model |
+| Cost (long-term) | Per-token forever | One-time training cost |
+| Offline use | Impossible | Full capability |
+| Customization | Limited fine-tuning | Full QLoRA/LoRA control |
+| Vendor lock-in | High | None |
+
+For a vertical business handling sensitive client data (inspection reports, building addresses, compliance records), keeping inference local is a strategic advantage.
+
+### Training Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   TRAINING DATA PIPELINE                     │
+│                                                              │
+│  Phase 1: Extract                                            │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
+│  │   Chat   │ │ Business │ │ Domain   │ │  Agent   │       │
+│  │Transcripts│ │Blueprint │ │Knowledge │ │Behaviors │       │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘       │
+│       └─────────────┼───────────┼─────────────┘             │
+│                     ▼                                        │
+│  Phase 2: Structure → JSONL (instruction/input/output)       │
+│                     │                                        │
+│  Phase 3: Augment via Distillation                           │
+│  ┌──────────────────▼───────────────────┐                   │
+│  │  Send to GPT-4o / Claude API         │                   │
+│  │  Generate high-quality completions    │  ~$20-50         │
+│  │  for domain-specific scenarios        │                   │
+│  └──────────────────┬───────────────────┘                   │
+│                     ▼                                        │
+│  Phase 4: Fine-Tune (QLoRA, 4-bit)                          │
+│  ┌──────────────────────────────────────┐                   │
+│  │  Option A: MacBook Pro (MLX)         │  Apple Silicon    │
+│  │  Option B: Kaggle (Free T4 GPU)      │  30h/week free   │
+│  │  Option C: Google Colab              │  T4/A100 GPU     │
+│  └──────────────────┬───────────────────┘                   │
+│                     ▼                                        │
+│  Phase 5: Export → GGUF → Deploy                            │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                    │
+│  │  Ollama  │ │  Mobile  │ │  Server  │                    │
+│  │ (MacBook)│ │ (Client) │ │(API mode)│                    │
+│  └──────────┘ └──────────┘ └──────────┘                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Training Environments
+
+| Environment | GPU | VRAM | Cost | Best For |
+|-------------|-----|------|------|----------|
+| **MacBook Pro M-series** | Apple Silicon (MLX) | Shared with RAM (16-96GB) | $0 | QLoRA fine-tune of 7B models, ~45-60 min for 1K examples |
+| **Kaggle Notebooks** | NVIDIA T4/P100 | 16 GB | Free (30h/week) | Larger training runs, Unsloth + CUDA |
+| **Google Colab Free** | NVIDIA T4 | 15 GB | Free (limited sessions) | Quick experiments |
+| **Google Colab Pro** | A100 | 40 GB | $12/month | Production training runs |
+| **Vertex AI** | Various | Scalable | $5-15/fine-tune | Managed pipeline |
+
+**Recommended path for small businesses:** Start with Kaggle (free) to validate, graduate to MacBook Pro for ongoing iteration. Total training cost: $20-50 for API distillation, $0 for compute.
+
+### MacBook Pro as Training Station (MLX)
+
+Apple's MLX framework enables native fine-tuning on Apple Silicon without CUDA:
+
+```bash
+# Install
+pip install mlx-lm
+
+# Fine-tune with QLoRA (4-bit quantized)
+mlx_lm.lora \
+  --model mlx-community/Qwen2.5-7B-Instruct-4bit \
+  --train \
+  --data ./training-data \
+  --batch-size 4 \
+  --lora-layers 16 \
+  --iters 1000
+
+# Test the fine-tuned model
+mlx_lm.generate \
+  --model mlx-community/Qwen2.5-7B-Instruct-4bit \
+  --adapter-path ./adapters \
+  --prompt "Inspect the wet sprinkler system in Building A..."
+
+# Export to GGUF for Ollama deployment
+mlx_lm.fuse \
+  --model mlx-community/Qwen2.5-7B-Instruct-4bit \
+  --adapter-path ./adapters \
+  --export-gguf
+```
+
+Hardware requirements:
+- **Minimum:** MacBook Pro M1/M2, 16 GB RAM → 7B model in 4-bit (~4.5 GB)
+- **Comfortable:** MacBook Pro M2/M3, 24+ GB RAM → 7B model with larger batch sizes
+- **Ideal:** MacBook Pro M3 Max, 64+ GB → 14B+ models, faster iteration
+
+### Recommended Models for Vertical Businesses
+
+| Model | Size | License | Strengths |
+|-------|------|---------|-----------|
+| **Qwen 2.5 7B** | 4.5 GB (4-bit) | Apache 2.0 | Best multilingual, strong reasoning, fully open |
+| **Llama 4 Scout 8B** | ~5 GB (4-bit) | Llama license | Large community, solid general performance |
+| **Gemma 3 4B** | ~2.5 GB (4-bit) | Apache 2.0 | Smallest viable, runs on phones |
+| **Phi-4 Mini 3.8B** | ~2.3 GB (4-bit) | MIT | Microsoft's small model, good at structured tasks |
+
+**Our recommendation: Qwen 2.5 7B** — Apache 2.0 (no restrictions), best-in-class for non-English languages, and the fine-tuned 7B model will outperform a generic 12B+ model on your domain tasks.
+
+### Edge Deployment Model
+
+```
+┌─────────────────────────────────────────────┐
+│           DEPLOYMENT TOPOLOGY                │
+│                                              │
+│  ┌──────────────┐     ┌──────────────┐      │
+│  │  MacBook Pro  │     │    VPS       │      │
+│  │  ┌─────────┐ │     │  (Cloud)     │      │
+│  │  │ Ollama  │ │     │  ┌────────┐  │      │
+│  │  │ Fine-   │ │     │  │ Claude │  │      │
+│  │  │ tuned   │ │     │  │  API   │  │      │
+│  │  │ 7B      │ │     │  │Workers │  │      │
+│  │  └────┬────┘ │     │  └────────┘  │      │
+│  │       │      │     │              │      │
+│  └───────┼──────┘     └──────────────┘      │
+│          │                                   │
+│    Local Network / Tailscale                 │
+│          │                                   │
+│  ┌───────┼──────┐                            │
+│  │  Mobile      │                            │
+│  │  (Field)     │                            │
+│  │  ┌─────────┐ │                            │
+│  │  │ Client  │ │  Sends queries to          │
+│  │  │  App    │ │  MacBook over LAN          │
+│  │  └─────────┘ │                            │
+│  └──────────────┘                            │
+│                                              │
+│  Hybrid: Local model for field work          │
+│          Cloud agents for back-office        │
+└─────────────────────────────────────────────┘
+```
+
+**The hybrid model:**
+- **Field work** (inspections, on-site) → Local fine-tuned model via Ollama, no internet needed
+- **Back-office** (invoicing, CRM, email) → Cloud-based Claude/GPT agents via MCP servers
+- **Mobile** → Lightweight client app that queries the MacBook over local network, or a small on-device model (Gemma 4B) for basic offline queries
+
+### Data Sources for Training
+
+A typical vertical business already has enough data for meaningful fine-tuning:
+
+| Source | Example Volume | Training Pairs |
+|--------|---------------|----------------|
+| Work orders / Service tickets | 500-2000 | 200-800 |
+| Inspection reports | 200-1000 | 100-500 |
+| Client communications | 1000+ emails | 100-300 |
+| Estimates / Invoices | 500+ | 50-150 |
+| Regulatory knowledge | Industry codes + standards | 200-500 |
+| Agent conversation logs | Chat transcripts | 100-300 |
+| Internal SOPs | Process documents | 50-100 |
+
+**Target: 1,000-2,500 high-quality instruction pairs** is enough for a meaningful domain expert model. You likely already have this data — it just needs structuring into JSONL format.
+
+### Cost Summary
+
+| Phase | What | Cost |
+|-------|------|------|
+| Data extraction | Parse existing business data into JSONL | $0 |
+| Distillation | Generate training pairs via GPT-4o API | $20-50 |
+| Fine-tuning | QLoRA on MacBook (MLX) or Kaggle (free GPU) | $0 |
+| Deployment | Ollama (local) | $0 |
+| **Total** | **Domain expert model that you own** | **$20-50** |
+
+Compare this to: $0.01-0.06/1K tokens for cloud API calls × thousands of field queries/month = significant ongoing cost.
+
+---
+
 ## Interactive Layer: Chat Integration
 
 A real-time interface (Slack/Teams) enables:
