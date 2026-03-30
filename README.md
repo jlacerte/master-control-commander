@@ -45,8 +45,8 @@ Developed and tested over 6+ months in a field service operation handling invoic
                     │  └──────────┘ └──────────┘ └──────────┘    │
                     │                                              │
                     │  ┌──────────┐ ┌──────────┐ ┌──────────┐    │
-                    │  │   RAG    │ │Blueprint │ │ Training │    │
-                    │  │  Memory  │ │  Refresh │ │   Data   │    │
+                    │  │   RAG    │ │Blueprint │ │Adversarial│   │
+                    │  │  Memory  │ │  Refresh │ │ Validator │   │
                     │  └──────────┘ └──────────┘ └──────────┘    │
                     └─────────────────────────────────────────────┘
 ```
@@ -157,133 +157,81 @@ Rules that exist because of real incidents:
 
 ## Data Strategy
 
-Three layers, each serving a different purpose:
+Two layers, each serving a different purpose:
 
 | Layer | Purpose | Update Frequency |
 |-------|---------|-----------------|
 | RAG Memory | Conversation history, decisions, context | Hourly |
 | Blueprint | ERP snapshot (clients, finances, projects) | Weekly |
-| Training Data | Domain expertise for fine-tuning | As needed |
 
 ```
 RAG Memory     → "What happened yesterday?"
 Blueprint      → "What's the current state of Client A?"
-Training Data  → "How should a domain expert respond?"
 ```
 
 ---
 
-## Local Model Strategy
+## Core Concept: Adversarial Validation
 
-Beyond cloud agents, the architecture includes local model deployment for field use — offline-capable domain expertise on commodity hardware.
+The central idea behind this architecture: **two agents in a pit**. Every meaningful action passes through a challenge-response loop where one agent proposes and another validates.
 
-### Open-Weight vs Proprietary
+This is borrowed from adversarial networks (GANs) — but applied to business operations instead of image generation. The "generator" proposes actions. The "discriminator" checks them.
 
-| Factor | Proprietary (API) | Open-Weight (Local) |
-|--------|-------------------|---------------------|
-| Privacy | Data leaves your network | Stays on your hardware |
-| Ownership | You rent access | You own the model |
-| Cost (long-term) | Per-token ongoing | One-time training |
-| Offline | No | Yes |
-| Vendor lock-in | High | None |
-
-### Training Pipeline
+### How it works
 
 ```
-Extract data (work orders, inspections, SOPs)
-    → Structure as JSONL (instruction/input/output)
-    → Augment via API distillation (~$20-50)
-    → Fine-tune QLoRA 4-bit
-    → Export GGUF
-    → Deploy via Ollama
+┌─────────────────────────────────────────────────────────────┐
+│                   ADVERSARIAL LOOP                           │
+│                                                              │
+│   ┌────────────┐         ┌────────────┐                     │
+│   │  PROPOSER   │ ──────→ │  VALIDATOR  │                    │
+│   │  (Worker)   │ ←────── │  (Reviewer) │                    │
+│   │             │  accept  │             │                    │
+│   │  Generates  │  reject  │  Challenges │                    │
+│   │  action     │  revise  │  checks     │                    │
+│   └────────────┘         └────────────┘                     │
+│         │                       │                            │
+│         ▼                       ▼                            │
+│   "Create invoice           "Amount matches work             │
+│    for $4,200"               order? Client active?           │
+│                               Terms correct?"                │
+│                                                              │
+│   Only executes if BOTH agents agree.                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Training Environments
+### The two systems as adversaries
 
-| Environment | GPU | Cost | Notes |
-|-------------|-----|------|-------|
-| MacBook Pro (MLX) | Apple Silicon | $0 | Native QLoRA, ~45-60 min for 1K examples |
-| Gaming PC (CUDA) | NVIDIA RTX 4060+ | $0 | Unsloth + PyTorch, 8GB VRAM handles 7B 4-bit |
-| Kaggle | T4/P100 16GB | Free (30h/week) | Good for larger runs |
-| Google Colab Pro | A100 40GB | $12/month | Production training |
+**Master Control** (agent layer) proposes actions based on tasks, domain knowledge, and business rules. **Master Commander** (infrastructure layer) validates feasibility, checks system health, and enforces constraints.
 
-#### MacBook Pro (MLX)
+Neither system trusts the other blindly:
 
-```bash
-pip install mlx-lm
-mlx_lm.lora \
-  --model mlx-community/Qwen2.5-7B-Instruct-4bit \
-  --train --data ./training-data \
-  --batch-size 4 --lora-layers 16 --iters 1000
-```
+| Proposer says | Validator checks |
+|---------------|-----------------|
+| "Send invoice to client" | Client exists? Amount matches? Not already sent? |
+| "Restart service X" | Max restarts reached? Other services affected? |
+| "Schedule inspection" | Calendar conflict? Travel time realistic? |
+| "Email client about overdue payment" | Correct contact? Escalation level appropriate? |
 
-#### Gaming PC — NVIDIA GPU (CUDA + Unsloth)
+### Why this matters
 
-An NVIDIA GPU with 8+ GB VRAM (RTX 3060, 4060, etc.) can fine-tune 7B models using Unsloth:
+Single-agent systems fail silently. The agent makes a confident mistake and nobody catches it. With adversarial validation:
 
-```bash
-# Setup (one-time)
-pip install unsloth torch
+- **Errors get caught before execution** — the validator asks the questions the proposer forgot
+- **Confidence is earned, not assumed** — both agents must agree
+- **Escalation is natural** — disagreement between agents = ask a human
+- **Domain rules are enforced structurally** — not just "hoped for" via prompting
 
-# Fine-tune
-python -c "
-from unsloth import FastLanguageModel
-model, tokenizer = FastLanguageModel.from_pretrained(
-    'unsloth/Qwen2.5-7B-Instruct-bnb-4bit',
-    max_seq_length=2048, load_in_4bit=True
-)
-model = FastLanguageModel.get_peft_model(model, r=16, lora_alpha=16,
-    target_modules=['q_proj','k_proj','v_proj','o_proj',
-                    'gate_proj','up_proj','down_proj'])
-
-# Load your JSONL training data and train
-from unsloth import UnslothTrainer, UnslothTrainingArguments
-# ... see Unsloth docs for full example
-"
-
-# Export to GGUF for Ollama
-model.save_pretrained_gguf("./output", tokenizer, quantization_method="q4_k_m")
-
-# Deploy
-ollama create my-expert -f Modelfile
-```
-
-Hardware notes:
-- **RTX 4060 (8GB):** Handles Qwen 7B in 4-bit comfortably. ~30-45 min for 1K examples.
-- **RTX 3060 (12GB):** More VRAM headroom, similar speed.
-- **RTX 4090 (24GB):** Can handle 14B models, 3-4x faster.
-
-### Recommended Models
-
-| Model | Size (4-bit) | License | Notes |
-|-------|-------------|---------|-------|
-| Qwen 2.5 7B | ~4.5 GB | Apache 2.0 | Best multilingual, strong reasoning |
-| Llama 4 Scout 8B | ~5 GB | Llama license | Large community |
-| Gemma 3 4B | ~2.5 GB | Apache 2.0 | Smallest viable, runs on phones |
-| Phi-4 Mini 3.8B | ~2.3 GB | MIT | Good at structured tasks |
-
-### Deployment
+### Levels of adversarial validation
 
 ```
-┌──────────────┐     ┌──────────────┐
-│  MacBook /   │     │    VPS       │
-│  Gaming PC   │     │  (Cloud)     │
-│  ┌─────────┐ │     │  ┌────────┐  │
-│  │ Ollama  │ │     │  │ Claude │  │
-│  │ Local   │ │     │  │  API   │  │
-│  │ Model   │ │     │  │Workers │  │
-│  └────┬────┘ │     │  └────────┘  │
-└───────┼──────┘     └──────────────┘
-        │
-  Local Network / Tailscale
-        │
-┌───────┼──────┐
-│  Mobile      │  → Queries local model over LAN
-│  (Field)     │    or runs Gemma 4B on-device
-└──────────────┘
+Level 0: No validation      → Agent acts alone (dangerous)
+Level 1: Self-check         → Agent reviews its own output (weak)
+Level 2: Peer validation    → Second agent validates (this architecture)
+Level 3: Human-in-the-loop  → Disagreements escalate to operator
 ```
 
-**Hybrid approach:** Local model for field work (offline, private), cloud agents for back-office (invoicing, CRM, email).
+This architecture operates at Level 2 by default, with automatic escalation to Level 3 when the two agents disagree.
 
 ---
 
@@ -320,13 +268,12 @@ The demo seeds 3 sample tasks (inspection summary, overdue follow-ups, retrofit 
 
 ### Hardware requirements
 
-| Setup | RAM | GPU | Works? |
-|-------|-----|-----|--------|
-| Any modern laptop | 4+ GB | None needed | Yes — demo uses API only |
-| Gaming PC (RTX 4060) | 8+ GB | 8 GB VRAM | Yes — also suitable for local fine-tuning |
-| MacBook Pro M-series | 16+ GB | Integrated | Yes — demo + MLX fine-tuning |
+| Setup | RAM | Works? |
+|-------|-----|--------|
+| Any modern laptop | 4+ GB | Yes — demo uses API only |
+| VPS (4 CPU, 8 GB) | 8 GB | Yes — production target |
 
-The demo itself only needs Python 3.11+ and a Claude API key. GPU is only needed if you want to fine-tune a local model afterward.
+The demo needs Python 3.11+ and a Claude API key. No GPU required.
 
 ### What to observe
 
@@ -362,10 +309,9 @@ For a real deployment (not the demo):
 ```
 Week 1:  1 MCP server + 1 worker + health check
 Week 2:  Add 2-3 more MCP servers
-Week 3:  Second worker (different role)
+Week 3:  Second worker (adversarial validator role)
 Week 4:  Auto-stabilize + RAG memory
-Month 2: Blueprint automation + training data extraction
-Month 3: Fine-tune local model
+Month 2: Blueprint automation + adversarial loops on critical paths
 ```
 
 Everything runs on a single VPS (4 CPU, 8GB RAM, $20-50/month). Systemd manages services. Cron handles scheduling. No Kubernetes needed.
@@ -382,13 +328,14 @@ HVAC, plumbing, electrical, fire protection, property management, insurance insp
 
 ## Lessons from Production
 
-1. **CLAUDE.md is the product.** Domain instructions and autonomy rules matter more than architecture.
-2. **Self-healing saves you at 3 AM.** Circuit breakers + auto-restart means sleeping through issues.
-3. **MCP abstraction is necessary.** Agents on raw APIs leads to retry loops and OAuth problems.
-4. **Explicit autonomy beats model judgment.** Define what agents can and can't do.
-5. **One VPS is enough.** Resist over-engineering at this scale.
-6. **Voice input needs STT correction.** Domain terms get mangled by speech-to-text.
+1. **Two agents are smarter than one.** Adversarial validation catches errors that self-review misses.
+2. **CLAUDE.md is the product.** Domain instructions and autonomy rules matter more than architecture.
+3. **Self-healing saves you at 3 AM.** Circuit breakers + auto-restart means sleeping through issues.
+4. **MCP abstraction is necessary.** Agents on raw APIs leads to retry loops and OAuth problems.
+5. **Explicit autonomy beats model judgment.** Define what agents can and can't do.
+6. **One VPS is enough.** Resist over-engineering at this scale.
 7. **Health before features.** Never deploy when existing services are degraded.
+8. **Disagreement = escalation.** When agents don't agree, a human decides. This is a feature.
 
 ---
 
