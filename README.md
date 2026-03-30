@@ -1,5 +1,7 @@
 # Master Control Commander
 
+[Version française](README.fr.md)
+
 **v0.1.0-alpha — Active Development**
 
 > Status: Early development and consolidation. Architecture documented from a working production system. Demo available for local testing.
